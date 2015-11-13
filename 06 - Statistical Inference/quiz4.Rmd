@@ -1,0 +1,166 @@
+---
+title: 'Statistical Inference - Quiz #4'
+author: "Geno Lamb"
+date: "Tuesday, December 23, 2014"
+output: pdf_document
+---
+
+## Question 1
+
+A pharmaceutical company is interested in testing a potential blood pressure lowering medication. Their first examination considers only subjects that received the medication at baseline then two weeks later. The data are as follows (SBP in mmHg)
+
+$$
+\begin{tabular}{ | l | l | l | }
+    \hline
+    Subject & Baseline & Week 2 \\ \hline
+    1       & 140      & 132 \\ \hline
+    2       & 138      & 135 \\ \hline
+    3       & 150      & 151 \\ \hline
+    4       & 148      & 146 \\ \hline
+    5       & 135      & 130 \\
+    \hline
+\end{tabular}
+$$ 
+
+Consider testing the hypothesis that there was a mean reduction in blood pressure? Give the P-value for the associated two sided T test. 
+
+### Solution
+
+
+```{r q1, warning=FALSE}
+baseline <- c(140,138,150,148,135)
+wk2 <- c(132,135,151,146,130)
+answer <- round(t.test(baseline, wk2, paired=TRUE)$p.value, 3)
+```
+
+**`r answer`**
+
+---
+
+## Question 2
+
+A sample of 9 men yielded a sample average brain volume of 1,100 cc and a standard deviation of 30 cc. What is the complete set of values of $\mu_{0}$ that a test of $H_{0} : \mu = \mu_{0}$ would fail to reject the null hypothesis in a two sided 5% Students t-test?
+
+### Solution
+
+```{r q2, warning=FALSE}
+mu <- 1100
+sd <- 30
+n <- 9
+answer <- round(mu + c(-1,1) * qt(0.975, df = n-1) * (sd / sqrt(n))) 
+```
+
+**[`r answer`]**
+
+---
+
+## Question 3
+
+Researchers conducted a blind taste test of Coke versus Pepsi. Each of four people was asked which of two blinded drinks given in random order that they preferred. The data was such that 3 of the 4 people chose Coke. Assuming that this sample is representative, report a P-value for a test of the hypothesis that Coke is preferred to Pepsi using a one sided exact test.
+
+### Solution
+
+```{r q3, warning=FALSE}
+answer <- round(pbinom(2, size=4, prob=0.5, lower.tail = FALSE), 2)
+```
+
+**`r answer`**
+
+---
+
+## Question 4
+
+Infection rates at a hospital above 1 infection per 100 person days at risk are believed to be too high and are used as a benchmark. A hospital that had previously been above the benchmark recently had 10 infections over the last 1,787 person days at risk. About what is the one sided P-value for the relevant test of whether the hospital is *below* the standard? 
+
+### Solution
+
+```{r q4}
+answer <- round(ppois(9,17), 2)
+```
+
+**`r answer`**
+
+---
+
+## Question 5
+
+Suppose that 18 obese subjects were randomized, 9 each, to a new diet pill and a placebo. Subjects' body mass indices (BMIs) were measured at a baseline and again after having received the treatment or placebo for four weeks. The average difference from follow-up to the baseline (followup - baseline) was -3 $kg/m^{2}$ for the treated group and 1 $kg/m^{2}$ for the placebo group. The corresponding standard deviations of the differences was 1.5 $kg/m^{2}$ for the treatment group and 1.8 $kg/m^{2}$ for the placebo group. Does the change in BMI appear to differ between the treated and placebo groups? Assuming normality of the underlying data and a common population variance, give a p-value for a two sided t test.
+
+### Solution
+
+**Less than 0.05, but larger than 0.01**
+
+---
+
+## Question 6
+
+Brain volumes for 9 men yielded a 90% confidence interval of 1,077 cc to 1,123 cc. Would you reject in a two sided 5% hypothesis test of $H_{0} : \mu = 1,078$? 
+
+### Solution
+
+Here we need to first derive the original $\mu$ and $S$ from the information given, and then use that to calculate a 95% confidence interval.
+
+```{r q6_1}
+dt <- (1123 - 1077) / 2 
+mu <- 1077 + dt
+stdev <- dt / qnorm(0.90)
+```
+
+Recall that the confidence interval is $\mu \pm z_{1 - \sigma} S / \sqrt{n}$ using the Z statistic.
+
+```{r q6_2}
+n <- 9
+conf.int <- mu + c(-1,1) * qnorm(0.975) * stdev / sqrt(n)
+answer <- conf.int[[1]] <= 1078 & conf.int[[2]] >= 1078
+
+if (answer) { 
+    # 1078 is within our confidence interval
+    answer <- "No you wouldn't reject."
+} else {
+    # 1078 is outside of our confidence interval
+    answer <- 'Yes you would reject.'
+}
+```
+
+**`r answer`**
+
+---
+
+## Question 7
+
+Researchers would like to conduct a study of 100 healthy adults to detect a four year mean brain volume loss of $.01 mm^{3}$. Assume that the standard deviation of four year volume loss in this population is $.04 mm^{3}$. About what would be the power of the study for a 5% one sided test versus a null hypothesis of no volume loss?
+
+### Solution
+
+```{r q7}
+answer <- round(power.t.test(delta = 0.01, sd = 0.04, n = 100, 
+                                 type = 'one.sample', alt = 'one.sided')$power, 2)
+```
+
+**`r answer`**
+
+---
+
+## Question 8
+
+Researchers would like to conduct a study of $n$ healthy adults to detect a four year mean brain volume loss of $.01 mm^{3}$. Assume that the standard deviation of four year volume loss in this population is $.04 mm^{3}$. About what would be the value of $n$ needded for 90% power of type one error rate of 5% one sided test versus a null hypothesis of no volume loss?
+
+### Solution
+
+```{r q8, warning=FALSE, message=FALSE}
+require(plyr)
+answer <- round_any(power.t.test(delta = 0.01, sd = 0.04, power = 0.90, 
+                                 type = 'one.sample', alt = 'one.sided')$n, 10)
+```
+
+**`r answer`**
+
+---
+
+## Question 9
+
+As you increase the type one error rate, $\alpha$, what happens to power?
+
+### Solution
+
+**You will get larger power**, since increasing the type one error rate is the same as decreasing the confidence interval.

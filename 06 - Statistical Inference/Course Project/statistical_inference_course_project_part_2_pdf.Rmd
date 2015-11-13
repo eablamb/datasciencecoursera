@@ -1,0 +1,104 @@
+---
+title: 'Statistical Inference Part 2: Tooth Growth'
+output: pdf_document
+---
+
+# Introduction
+
+For part 2 of our investigations into statistical inference, we shall examine the `ToothGrowth` data set.  This data set contains tooth length measurements for guinea pigs given vitamin C supplements. 
+
+First, we will perform some basic exploratory analysis.  Then, we will provide a summary of the data and use confidence intervals to compare tooth growth by supplementation (ascorbic acid vs. orange juice) and dosage (0.5, 1.0, and 2.0 mg).  Our conclusions will be stated at the end. 
+
+# Exploratory Analysis of ToothGrowth
+
+Let's start by loading our data set and the necessary libraries.
+
+```{r prelim, message=FALSE, warning=FALSE, results='hide'}
+library(ggplot2) # For plots
+library(scales)  # Also for plots
+library(plyr)    # For data munging
+
+options(scipen=999) # To disable scientific notation output
+
+# Load ToothGrowth
+data(ToothGrowth)
+```
+
+Now let's provide a plot for some exploratory analysis of the data.
+
+```{r explore, warning=FALSE}
+plot_explore <- function(data, 
+                         title = 'The Effect of Vitamin C on Tooth Growth in Guinea Pigs',
+                         subtitle = 'Grouped by Supplement Type and Dosage (in mg)'
+                         ) {
+    
+    p <- ggplot(data, aes(x=dose, y=len, fill=factor(dose))) +
+        
+         # Facet by supplement
+         facet_grid(. ~ supp) +
+        
+         # Make this plot a histogram
+         geom_boxplot() +
+        
+         # Label our plot
+         ggtitle( bquote( atop(.(title), atop(.(subtitle), '') ) ) ) +
+         xlab('Dosage (in milligrams)') +
+         ylab('Tooth Length') +
+         
+         # Change the legend label and Dosage labels
+         scale_fill_discrete(name='Dosage', 
+                             breaks=c(0.5,1.0,2.0), 
+                             labels=c('0.5 mg', '1.0 mg', '2.0 mg'))
+    p
+}
+
+plot_explore(ToothGrowth)
+```
+
+# Summary of ToothGrowth
+
+Here we will provide an overall summary of the data in `ToothGrowth`
+
+```{r summary, warning=FALSE}
+summary(ToothGrowth)
+```
+
+# Confidence Testing
+
+Now let us investigate the means and confidence intervals (95%) of tooth length by supplement type and dosage.  Recall that the 95% confidence interval for a sample mean is:
+
+$$
+    \mu \pm 2\sigma/\sqrt{n}     
+$$
+
+By supplement:
+
+```{r test_supp, warning=FALSE}
+by_supp <- ddply(ToothGrowth, 
+                 .(supp),
+                 summarize,
+                 mean=mean(len), 
+                 conf.int=2 * sd(len) / sqrt( length(len) ))
+by_supp$lower.bound <- with(by_supp, mean - conf.int)
+by_supp$upper.bound <- with(by_supp, mean + conf.int)
+by_supp
+```
+
+By dosage:
+
+```{r test_dose, warning=FALSE}
+by_dose <- ddply(ToothGrowth, 
+                 .(dose),
+                 summarize,
+                 mean=mean(len), 
+                 conf.int=2 * sd(len) / sqrt( length(len) ))
+by_dose$lower.bound <- with(by_dose, mean - conf.int)
+by_dose$upper.bound <- with(by_dose, mean + conf.int)
+by_dose
+```
+
+# Conclusions
+
+There is a positive correlation between the dosage of vitamin C and tooth growth for guinea pigs.  The 2.0 mg dosage provided the greatest tooth growth, with a mean of $26.1 \pm 1.69$.  This interval is safely above the intervals for 1.0 mg and 0.5 mg with a 95% confidence.
+
+It also appeared that ascorbic acid (mean $20.66 \pm 2.41$) had a greater effect than orange juice (mean $16.96 \pm 3.02$) for tooth growth, but since their confidence intervals overlapped, more data is needed to determine the true benefits of different supplementation types.

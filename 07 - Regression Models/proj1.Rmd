@@ -1,0 +1,222 @@
+---
+title: "Motor Trend - MPG Study"
+output: html_document
+---
+
+---
+
+```{r Load Data, echo = FALSE, message = FALSE, warning = FALSE}
+
+library(ggplot2)
+library(ggthemes)
+library(grid)
+library(dplyr)
+# library(reshape2)
+library(knitr)
+library(scales)
+library(corrplot)
+
+data(mtcars)
+
+## 
+cars <- as.data.frame(mtcars)
+cars$names <- row.names(mtcars)
+cars$am <- factor(cars$am, 
+                  labels = c('Manual', 'Automatic'))
+cars$vs <- factor(cars$vs,
+                  labels = c('V engine', 'Straight engine'))
+cars$wt.lbs <- cars$wt * 2000
+
+```
+
+
+## Executive Summary
+
+We must answer two questions:
+
+* "Is an automatic or manual transmission better for MPG"
+* "Quantify the MPG difference between automatic and manual transmissions"
+
+---
+
+## Data Summary
+
+```{r}
+
+kable(mtcars)
+
+```
+
+---
+
+## Exploratory Analysis
+
+### All-Pairs Correlation
+
+Let's take a look at which variables are correlate, to see if we can uncover some patterns in the data
+and hopefully restrict the number of predictors used in the regression.
+
+```{r, fig.width = 6.4, fig.height = 6.4}
+
+cor.mtest <- function(mat, conf.level = 0.95) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat <- lowCI.mat <- uppCI.mat <- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    diag(lowCI.mat) <- diag(uppCI.mat) <- 1
+    for (i in 1:(n - 1)) {
+        for (j in (i + 1):n) {
+            tmp <- cor.test(mat[, i], mat[, j], conf.level = conf.level)
+            p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+            lowCI.mat[i, j] <- lowCI.mat[j, i] <- tmp$conf.int[1]
+            uppCI.mat[i, j] <- uppCI.mat[j, i] <- tmp$conf.int[2]
+        }
+    }
+    return(list(p.mat, lowCI.mat, uppCI.mat))
+}
+
+mtcars.cor <- cor(mtcars)
+mtcars.mtest <- cor.mtest(mtcars, 0.95)
+corrplot::corrplot(mtcars.cor, 
+                   p.mat = mtcars.mtest[[1]],
+                   type="upper", 
+                   method = "number",
+                   order="hclust", 
+                   tl.col="black", 
+                   tl.srt=45)
+    
+```
+
+### Baseline Relationship Between MPG and Transmission Type
+
+First, let's look at the mean MPG for all cars sampled when only considering transmission type.
+
+```{r}
+
+cars.am.mpg_stats <- cars %>%
+    dplyr::group_by(am) %>%
+    dplyr::summarize(mean.mpg = mean(mpg),
+                     min.wt.lbs = min(wt.lbs),
+                     max.wt.lbs = max(wt.lbs))
+
+fit.a <- lm(mpg ~ factor(am) - 1, data = cars)
+fit.a.summary <- summary(fit.a)
+fit.a.coef <- coef(fit.a.summary)
+row.names(fit.a.coef) <- c('Manual','Automatic')
+kable(fit.a.coef)
+
+qplot(.fitted, .resid, data = fit.a) +
+  geom_hline(yintercept = 0) +
+  geom_smooth(se = FALSE)
+
+
+```
+
+### Car Weight as a Confounder
+
+```{r, fig.width = 10, fig.height = 6.4}
+
+breaks <- seq(0, 35, by = 5)
+p <- ggplot(cars, aes(x = names, y = mpg, fill = wt.lbs)) + 
+     facet_grid(. ~ am, scales = 'free_x') + 
+     geom_bar(stat = 'identity') +
+     scale_fill_continuous('Weight (lbs)',
+                           low = 'white', 
+                           high = 'darkred',
+                           labels = scales::comma) +
+     scale_y_continuous('MPG', 
+                        breaks = breaks) +
+     geom_hline(data = cars.am.mpg_stats, 
+               aes(yintercept = mean.mpg),
+               size = 1.0,
+               linetype = 'dashed',
+               color = 'blue') +
+     theme(axis.text.x = element_text(angle = 90),
+           axis.title.x = element_blank())
+p
+
+```
+
+
+```{r, fig.width = 10, fig.height = 6.4}
+
+breaks <- seq(0, 35, by = 5)
+p <- ggplot(cars, aes(x = wt.lbs, y = mpg, color = am)) + 
+     geom_point(size = 3.0) +
+     geom_smooth(aes(group = am), 
+                 method = 'lm', 
+                 size = 1.0) + 
+     scale_color_discrete('Transmission') +
+     scale_x_continuous('Weight (in lbs)', labels = scales::comma) +
+     scale_y_continuous('MPG',
+                        breaks = breaks) +
+     geom_vline(data = cars.am.mpg_stats[cars.am.mpg_stats$am == 'Manual',], 
+           aes(xintercept = min.wt.lbs),
+           size = 1.0,
+           linetype = 'dashed') +
+    geom_vline(data = cars.am.mpg_stats[cars.am.mpg_stats$am == 'Automatic',], 
+           aes(xintercept = max.wt.lbs),
+           size = 1.0,
+           linetype = 'dashed') +
+     theme(axis.text.x = element_text())
+p
+
+```
+
+### V vs. Straight Engines
+
+```{r, fig.width = 10, fig.height = 6.4}
+
+p <- ggplot(cars, aes(x = wt.lbs, y = mpg, color = factor(vs))) + 
+     geom_point(size = 3.0) +
+     geom_smooth(aes(group = factor(vs)), 
+                 method = 'lm', 
+                 size = 1.0) + 
+     scale_color_discrete('V/S') +
+     scale_x_continuous('Weight (in lbs)', labels = scales::comma) +
+     scale_y_continuous('MPG',
+                        breaks = breaks) +
+     theme(axis.text.x = element_text())
+p
+
+```
+
+### Number of Cylinders
+
+```{r, fig.width = 10, fig.height = 6.4}
+
+p <- ggplot(cars, aes(x = wt.lbs, y = mpg, color = factor(cyl))) + 
+     geom_point(size = 3.0) +
+     stat_smooth(aes(group = factor(cyl)),
+                 formula = y ~ 1,
+                 method = 'lm', 
+                 size = 1.0) + 
+     scale_color_discrete('Cylinders') +
+     scale_x_continuous('Weight (in lbs)', 
+                        labels = scales::comma) +
+     scale_y_continuous('MPG',
+                        breaks = breaks) +
+     theme(axis.text.x = element_text())
+p
+
+```
+
+
+## Model Selection
+
+```{r}
+
+fit.b <- lm(mpg ~ ., data = mtcars)
+fit.c <- lm(mpg ~ factor(am) : wt, data = mtcars)
+fit.d <- lm(mpg ~ factor(vs) : wt, data = mtcars)
+fit.e <- lm(mpg ~ factor(cyl) + wt, data = mtcars)
+fit.f <- lm(mpg ~ factor(am) : wt + factor(vs) : wt + factor(cyl) , data = mtcars)
+fit.g <- lm(mpg ~ factor(am) : wt + factor(vs) : wt, data = mtcars)
+fit.h <- lm(mpg ~ factor(am) : wt + factor(cyl), data = mtcars)
+fit.i <- lm(mpg ~ factor(am) : wt + factor(am) : drat + factor(cyl), data = mtcars)
+fit.model_comp <- anova(fit.a, fit.b, fit.c, fit.d, fit.e, fit.f, fit.g, fit.h, fit.i)
+row.names(fit.model_comp) <- c('A','B','C','D','E','F','G','H','I')
+kable(fit.model_comp)
+
+```
+

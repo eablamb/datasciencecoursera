@@ -1,0 +1,111 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+author: "Steven Fu"
+date: "Saturday, November 15, 2014"
+output: 
+  html_document:
+    keep_md: true
+---
+
+## Loading and preprocessing the data
+```{r readingdata}
+setwd("C:\\Users\\I309666\\github\\RepData_PeerAssessment1")
+unzip("activity.zip")
+data<-read.csv("activity.csv")
+data$date<-as.Date(data$date)
+```
+
+## What is mean total number of steps taken per day?
+```{r plot1, echo=TRUE}
+# to check if plyr package is installed, install if necessary
+is.installed <- function(x) is.element(x, installed.packages()[,1]) 
+if(!is.installed("plyr")){
+        install.packages("plyr")
+}
+library(plyr)
+
+stepByDay <- ddply(data, .(date), summarize, steps=sum(steps))
+hist(stepByDay$steps, col="blue",
+     main="Plot 1 - Histogram of number of steps per day",
+     xlab="number of steps taken", ylab="frequency")
+mean<-mean(stepByDay$steps, na.rm=TRUE)
+mean
+median<-median(stepByDay$steps, na.rm=TRUE)
+median
+```
+
+####Average number of steps taken per day is `r as.integer(mean)`.
+####Median of number of steps taken per day is `r as.integer(median)`.
+
+
+## What is the average daily activity pattern?
+```{r plot2, echo=TRUE}
+stepByInterval <- ddply(data, .(interval), summarize, steps=mean(steps,na.rm = TRUE))
+plot(x = stepByInterval$interval, y = stepByInterval$steps,type="l", col="blue",
+     main="Plot 2 - Average number of steps across all interval",
+     xlab="interval", ylab="average number of steps")
+max<-stepByInterval[stepByInterval$steps==max(stepByInterval$steps),]
+max
+```
+####The interval that contains on average the maximum number of steps 
+####is `r max$steps` at interval `r max$interval`.
+
+
+## Imputing missing values
+```{r missingvalue, echo=TRUE}
+missing<-is.na(data$steps)
+sum_missing<-sum(missing)
+```
+The number of missing observations is `r sum_missing`.
+
+```{r replacemissingvalue, echo=TRUE}
+data2<-data
+head(data2)
+data2$intervalmean<-ave(data2$steps,data2$interval, FUN=function(x) mean(x[!is.na(x)]))
+data2$steps[is.na(data2$steps)]<-data2$intervalmean[is.na(data2$steps)]
+head(data2)
+```
+
+```{r plot3, echo=TRUE}
+stepByDay2 <- ddply(data2, .(date), summarize, steps=sum(steps,na.rm = TRUE))
+hist(stepByDay2$steps, col="blue",
+     main="Plot 3 - Histogram of number of steps per day\nwith imputing missing values",
+     xlab="number of steps taken", ylab="frequency")
+mean2<-mean(stepByDay2$steps, na.rm=TRUE)
+mean2
+median2<-median(stepByDay2$steps, na.rm=TRUE)
+median2
+```
+
+####Average number of steps taken per day is `r as.integer(mean2)`.
+####Median of number of steps taken per day is `r as.integer(median2)`.
+####These values are very close to the estimates from the first part of the assignment.
+
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r plot4, echo=TRUE}
+weekday <- function(date) {
+        day<- weekdays(date, abbreviate =TRUE)
+    if (day %in% c("Mon", "Tue","Wed","Thu","Fri"))
+		return("Weekday")
+	else if (day %in% c("Sat","Sun"))
+		return("Weekend")
+	else
+		stop("Invalid Date")
+}
+data2$weekday<-factor(sapply(data2$date, FUN=weekday))
+head(data2)
+stepByInterval2 <- ddply(data2, .(interval,weekday), summarize, steps=mean(steps,na.rm = TRUE))
+head(stepByInterval2)
+
+if(!is.installed("ggplot2")){
+        install.packages("ggplot2")
+}
+library(ggplot2)
+ggplot(data=stepByInterval2, aes(interval, steps)) + geom_line() +
+        facet_grid(weekday ~ . ) + xlab("interval")+ ylab("average number of steps")+
+        ggtitle("Plot 4 - Average number of steps across all interval\nweekday vs weekend")
+```
+
+####Total number of steps taken between interval  500 and 1000 is generally higher on weekdays.
+####Total number of steps taken between interval 1000 and 2000 is generally higher on weekends.

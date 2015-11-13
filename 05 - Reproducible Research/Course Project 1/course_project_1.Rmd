@@ -1,0 +1,134 @@
+---
+title: "Activity Monitoring"
+output: html_document
+---
+
+## Part 1
+Load and preprocess the data.
+
+```{r}
+activity <- read.csv('activity.csv')
+activity$date <- as.Date(activity$date)
+activity_non_null <- subset(activity, !is.na(activity$steps))
+```
+
+## Part 2
+Create a histogram of the total number of steps taken each day:
+
+```{r, message=FALSE, echo=FALSE}
+library(sqldf)
+step_days <- sqldf('SELECT DATE, SUM(STEPS) AS TOTAL_STEPS 
+                        FROM activity_non_null
+                        GROUP BY DATE')
+plot(x=step_days$date, 
+     y=step_days$TOTAL_STEPS, 
+     type='h', 
+     lwd = 3, 
+     main = 'Steps Taken Per Day', 
+     xlab = 'Day', 
+     ylab = 'Number of Steps', 
+     col = 'red')
+```
+
+What is the mean and median total number of steps taken per day?
+```{r, message=FALSE, echo=FALSE}
+library(plyr)
+mean_med_steps <- ddply(activity_non_null, 
+                        c('date'), 
+                        summarize, 
+                        mean = mean(steps),
+                        median = median(steps))
+mean_med_steps
+```
+
+## Part 3
+```{r, echo=FALSE}
+avg_step_intervals <- sqldf('SELECT INTERVAL, AVG(STEPS) AS AVG_STEPS
+                                 FROM activity_non_null
+                                 GROUP BY INTERVAL')
+plot(x=avg_step_intervals$interval, 
+     y=avg_step_intervals$AVG_STEPS, 
+     type='l', 
+     lwd = 3, 
+     main = 'Average Number of Steps Per Day (in 5-minute intervals)',,
+     xlab = 'Time', 
+     ylab = 'Avg. Number of Steps', 
+     col = 'blue')
+```
+
+Which 5-minute interval, on average, contains the maximum number of steps?
+```{r, echo=FALSE}
+max_interval <- avg_step_intervals[order(-avg_step_intervals[['AVG_STEPS']]),]$interval[[1]]
+```
+Max Interval: `r max_interval`
+
+## Part 4
+Replace all step values in entries with "NA"" step values with the average step value for that entry's interval.  Generate the histograms and mean/median values as in parts 2 and 3 using this new data.  Compare: 
+```{r, echo=FALSE}
+replace_na <- function(step, interval) {
+    ret <- step
+    if (is.na(ret)) {
+        ret <- avg_step_intervals[avg_step_intervals$interval == interval,]$AVG_STEPS
+    }
+    ret
+}
+na_count <- nrow(subset(activity, !is.na(activity$steps)))
+new_activity <- activity
+new_activity$steps <- mapply(replace_na,
+                             new_activity$step,
+                             new_activity$interval)
+new_step_days <- sqldf('SELECT DATE, SUM(STEPS) AS TOTAL_STEPS 
+                           FROM new_activity
+                           GROUP BY DATE')
+plot(x=new_step_days$date, 
+     y=new_step_days$TOTAL_STEPS, 
+     type='h', 
+     lwd = 3, 
+     main = 'Steps Taken Per Day (NAs filled)', 
+     xlab = 'Day', 
+     ylab = 'Number of Steps', 
+     col = 'orange')
+mean_med_new <- ddply(new_activity, 
+                      c('date'), 
+                      summarize, 
+                      mean = mean(steps),
+                      median = median(steps))
+mean_med_new
+```
+
+With a few exceptions, replacing "NA" values increased both the total steps and mean/median number of steps per day.
+
+## Part 5
+
+Identify "weekday" and "weekend" entries.  Compare the daily average number of steps (per 5-minute interval) for weekdays vs. weekends.
+
+```{r, message = FALSE, echo = FALSE}
+library(ggplot2)
+
+day_class <- function(date) {
+    ret <- 'weekday'
+    day <- weekdays(as.Date(date))
+    if (day %in% c('Saturday','Sunday')) {
+        ret <- 'weekend'
+    }
+    ret
+}
+
+new_activity$day.type <- sapply(new_activity$date, day_class)
+avg_steps <- ddply(new_activity,
+                   c('day.type','interval'),
+                   summarize,
+                   mean = mean(steps))
+
+
+p = qplot(x = interval, 
+          y = mean, 
+          data = avg_steps, 
+          facets = day.type ~ ., 
+          geom = 'line', 
+          stat = 'identity',
+          main = "Daily Average Steps (per 5-minute interval)",
+          xlab = '5-minute Interval',
+          ylab = 'Average Steps')
+print(p)
+```

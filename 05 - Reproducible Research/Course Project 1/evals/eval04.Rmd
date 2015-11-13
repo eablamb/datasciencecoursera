@@ -1,0 +1,229 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+Reproducible Research: Peer Assessment 1  
+==========================================
+<br>
+
+
+## Loading and preprocessing the data
+Import the data
+```{r}
+activity <- read.table(file = unz("activity.zip", "activity.csv"), 
+                       header = TRUE, 
+                       sep = ",", 
+                       colClasses = c("integer", 
+                                      "Date", 
+                                      "integer"))
+```
+Modify the data
+```{r}
+## use the dplyr package
+suppressMessages(library(dplyr))
+
+## create more important time based fields
+activity <- activity %>% 
+    mutate(datetime = as.POSIXct((floor(interval/100)*60 + 
+                                      interval %% 100)*60, 
+                                 origin = date, 
+                                 tz = "UTC"), 
+           minutes = floor(interval/100)*60 + interval %% 100, 
+           time = format(datetime, "%H:%M")) %>% 
+    arrange(date, interval)
+```
+<br>
+
+
+## What is mean total number of steps taken per day?
+First, sum the number of steps taken to the daily level
+```{r}
+daily <- activity %>% 
+    group_by(date) %>% 
+    summarise(numSteps = sum(steps, na.rm = TRUE)) %>% 
+    arrange(date)
+```
+Next, create a histogram of the total number of steps taken each day
+```{r, fig.width=10, fig.height=6}
+## use the ggplo2 package (scales for axis text)
+suppressMessages(library(ggplot2))
+suppressMessages(library(scales))
+
+## histogram
+ggplot(data = daily, 
+       aes(x = numSteps)) + 
+    geom_histogram(col = "black", 
+                   fill = "steelblue", 
+                   binwidth = 1000) + 
+    xlab("Total Number of Steps Taken Each Day") + 
+    ylab("Number of Days") + 
+    scale_x_continuous(limits = c(0, 25000), 
+                       breaks = seq(0, 25000, 5000), 
+                       labels = comma) + 
+    scale_y_continuous(limits = c(0, 10), 
+                       breaks = seq(0, 10, 1), 
+                       labels = comma)
+```
+<br>
+Finally, report the mean and median number of steps taken per day:  
+- The mean is **`r format(round(mean(daily$numSteps)), big.mark = ",")`**  
+- The median is **`r format(median(daily$numSteps), big.mark = ",")`**  
+
+```{r}
+mean(daily$numSteps)
+median(daily$numSteps)
+```
+<br>
+
+
+## What is the average daily activity pattern?
+First, average the number of steps taken to the five minute interval level
+```{r}
+interval <- activity %>% 
+    group_by(minutes, time) %>%  
+    summarise(avgSteps = mean(steps, na.rm = TRUE)) %>% 
+    arrange(minutes, time)
+```
+Next, create a time series plot of the average steps taken by time interval
+```{r, fig.width=10, fig.height=6}
+ggplot(data = interval, 
+       aes(x = minutes, 
+           y = avgSteps)) + 
+    geom_line(col = "black") + 
+    xlab("Time of Day (hh:mm)") + 
+    ylab("Average Number of Steps") + 
+    scale_x_continuous(limits = c(0, 1435), 
+                       breaks = c(seq(0, 1400, 120), 1435), 
+                       labels = format(as.POSIXct(c(seq(0, 1400, 120), 1435)*60, 
+                                                  origin = as.Date(Sys.time()), 
+                                                  tz = "UTC"), 
+                                       "%H:%M")) + 
+    scale_y_continuous(limits = c(0, 225), 
+                       breaks = seq(0, 225, 25), 
+                       labels = comma)
+```
+<br>
+Finally, report the time interval with the maximum number of average steps
+```{r, results='asis'}
+## identify observation
+t <- interval %>% 
+    inner_join(data.frame(minutes = interval$minutes, 
+                          avgRank = dense_rank(interval$avgSteps)), 
+               "minutes") %>% 
+    as.data.frame() %>% 
+    arrange(desc(avgRank)) %>% 
+    filter(row_number() == 1) %>% 
+    select(minutes, time, avgSteps)
+
+## print using xtable
+suppressMessages(library(xtable))
+print(xtable(t), 
+      type = "html", 
+      include.rownames = FALSE)
+```
+```{r, echo=FALSE}
+rm(t)
+```
+<br>
+
+
+## Imputing missing values
+First, report the number of rows in the original data with missing values:  
+- The mean is **`r format(sum(is.na(activity$steps)), big.mark = ",")`**   
+
+```{r}
+sum(is.na(activity$steps))
+```
+Then, using the average # of steps per interval, create a new dataset filling in the missing values
+```{r}
+act <- activity %>% 
+    inner_join(interval, c("minutes", "time")) %>% 
+    mutate(steps = ifelse(is.na(steps), 
+                          avgSteps, 
+                          steps)) %>% 
+    select(steps, date, interval, datetime, minutes, time)
+```
+Next, sum the number of steps taken to the daily level
+```{r}
+day <- act %>% 
+    group_by(date) %>% 
+    summarise(numSteps = sum(steps)) %>% 
+    arrange(date)
+```
+Now, create a new histogram of the total number of steps taken each day
+```{r, fig.width=10, fig.height=6}
+## histogram
+ggplot(data = day, 
+       aes(x = numSteps)) + 
+    geom_histogram(col = "black", 
+                   fill = "steelblue", 
+                   binwidth = 1000) + 
+    xlab("Total Number of Steps Taken Each Day") + 
+    ylab("Number of Days") + 
+    scale_x_continuous(limits = c(0, 25000), 
+                       breaks = seq(0, 25000, 5000), 
+                       labels = comma) + 
+    scale_y_continuous(limits = c(0, 10), 
+                       breaks = seq(0, 10, 1), 
+                       labels = comma)
+```
+<br>
+Finally, report the new mean and median number of steps taken per day:  
+- The mean is **`r format(round(mean(day$numSteps)), big.mark = ",")`**  
+- The median is **`r format(round(median(day$numSteps)), big.mark = ",")`**  
+
+```{r}
+mean(day$numSteps)
+median(day$numSteps)
+```
+These new mean and median values do differ from the originals. After imputing, 
+the daily totals become less right skewed and more normally distributed. The average increased by 
+**`r format(round(mean(day$numSteps) - mean(daily$numSteps)), big.mark = ",")`** steps and the median increased by 
+**`r format(round(median(day$numSteps) - median(daily$numSteps)), big.mark = ",")`** steps.  
+<br>
+
+
+## Are there differences in activity patterns between weekdays and weekends?
+Using, the data with imputed values, create factor to distinguish weekdays vs. weekend days
+```{r}
+## create new data frame
+act2 <- act %>% 
+    mutate(dayType = as.factor(ifelse(as.integer(format(date, 
+                                                        "%u")) %in% (1:5), 
+                                      "weekday", 
+                                      "weekend")))
+
+## quickly see counts by day type
+summary(act2$dayType)
+```
+Then, average the number of steps taken to the day type / five minute interval level
+```{r}
+int <- act2 %>% 
+    group_by(dayType, minutes, time) %>%  
+    summarise(avgSteps = mean(steps, na.rm = TRUE)) %>% 
+    arrange(dayType, minutes, time)
+```
+Next, create a panel (faceted by day type) time series plot of the average steps taken by time interval
+```{r, fig.width=10, fig.height=6}
+ggplot(data = int, 
+       aes(x = minutes, 
+           y = avgSteps)) + 
+    geom_line(col = "black") + 
+    xlab("Time of Day (hh:mm)") + 
+    ylab("Average Number of Steps") + 
+    scale_x_continuous(limits = c(0, 1435), 
+                       breaks = c(seq(0, 1400, 120), 1435), 
+                       labels = format(as.POSIXct(c(seq(0, 1400, 120), 1435)*60, 
+                                                  origin = as.Date(Sys.time()), 
+                                                  tz = "UTC"), 
+                                       "%H:%M")) + 
+    scale_y_continuous(limits = c(0, 250), 
+                       breaks = seq(0, 250, 50), 
+                       labels = comma) + 
+    facet_wrap(~ dayType, ncol = 1)
+```
+<br>

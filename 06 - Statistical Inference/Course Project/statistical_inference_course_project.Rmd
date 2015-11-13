@@ -1,0 +1,157 @@
+---
+title: 'Statistical Inference Part 1: Simulation Investigation'
+output: html_document
+---
+
+---
+
+---
+
+# Introduction
+
+---
+
+Both the **Law of Large Numbers** (LLN) and the **Central Limit Theorem** (CLT) describe the asymptotic, or long-run behavior of *independent and identically distributed* (IID) populations as their size increases.  
+
+Recall that the **population mean**, or expected value, of a random population describes the "center of mass" of a population.  For a discrete random variable $X$ with PMF $p(x)$, it is expressed as: 
+
+$$
+    E[X] = \sum\limits_{x} xp(x)
+$$
+
+The **sample mean** is an estimate of the population mean based on a sample of observed data.  It is defined as:
+
+$$
+    \bar{X} = \sum\limits_{i=1}^n x_{i}p(x_{i})
+$$
+
+where $p(x_{i}) = 1 / n$.
+
+According to the Law of Large Numbers, the sample mean of a population converges upon the population mean as
+the size of the sample population, $n$, tends towards infinity.
+
+Likewise, the Central Limit Theorem states that the population of sample means will be distributed according to the normal distribution as the number of sample means computed tends towards infinity. 
+
+We will investigate the relationship between sample means and population means according to LLN and CLT in the following section.
+
+---
+
+---
+
+# Experiments
+
+---
+
+In our experiment, we will calculate the distribution of 1000 means of simulated random exponential 
+distributions where sample size is 40 and the rate parameter, lambda, is 0.2.  The probability density function of an exponential distribution is.
+
+$$
+    f(x;\lambda) = \begin{cases}
+        \lambda e^{-\lambda x} & x \ge 0, \\
+        0 & x < 0.
+    \end{cases}
+$$
+
+with mean $1 / \lambda$ and standard deviation $1 / \lambda$.  In our case, the mean and standard deviation will both be 5.
+
+Let's start by loading the necessary libraries.
+
+```{r prelim, message=FALSE, warning=FALSE, results='hide'}
+library(ggplot2) # For plots
+library(scales)  # Also for plots
+library(plyr)    # For data munging
+
+options(scipen=999) # To disable scientific notation output
+```
+
+Now let's calculate the means for 1000 random exponential distributions.  After computing those means, we will take the mean of means, and then save our collection of means to a data frame, so we can plot it later.
+
+```{r means, warning=FALSE}
+
+# Calculate 1000 means of 40 random trials of the exponential distribution with lambda = 0.2
+mns = NULL
+for (i in 1 : 1000) {
+    mns = c(mns, mean(rexp(40, .2)))
+}
+mean_of_means <- mean(mns)
+mns_count <- data.frame(means=mns)
+
+# compare variance and standard deviation of our sample to the theoretical measures
+samp_var <- var(mns)
+samp_sd <- sd(mns)
+theo_var <- 25*(25/1000)
+theo_sd <- 5*sqrt(25/1000)
+```
+
+Let's take a look at a plot our results.
+
+```{r plots, warning=FALSE}
+plot_hist <- function(data, 
+                      title = 'Distribution of means of 1000 random exponential distributions',
+                      subtitle = 'sample size = 40, lambda = 0.2',
+                      xlabel = 'Means', 
+                      mean_of_means = 0
+                      ) {
+    
+    p <- ggplot(data, aes(x=means)) +
+        
+         # Make this plot a histogram
+         geom_histogram(color='black', binwidth=0.1) +
+        
+         # Label our plot
+         ggtitle( bquote( atop(.(title), atop(.(subtitle), '') ) ) ) +
+         xlab(xlabel) +
+         ylab('Count') +
+        
+         # Control the number of axis ticks 
+         scale_x_continuous(breaks=seq(0, max(data$means)+1, by=0.5)) +
+         scale_y_continuous(breaks=pretty_breaks()) +
+        
+         # Add a vertical line where the mean is located along the x-axis
+         geom_vline(aes(xintercept=mean_of_means), color='red', linetype='dashed') +
+         geom_text(aes(x=mean_of_means, label=sprintf("\nmean of trials = %f", mean_of_means), y=15), 
+                   colour='red', 
+                   angle=90, 
+                   size=3) +
+        
+        # Overlay with the standard normal distribution
+        stat_function(fun=dnorm, args=list(mean=5, sd=5))
+    p
+}
+
+plot_hist(mns_count, mean_of_means=mean_of_means)
+```
+
+The results are pretty promising.  It looks like our mean of means is **`r mean_of_means`**, which is off from the population mean of 5 by only **`r abs(5 - mean_of_means)`**.  This is evidence in favor of the Law of Large Numbers.  
+
+Notice that the distribution of counts looks roughly normal, with a variance of **`r samp_var`** and standard deviation **`r samp_sd`**.  This is very close to the variance of our normal distribution, which is $(5\sigma)^{2}/1000$, or **`r theo_var`**, and our standard deviation $\sqrt{(5\sigma)^{2}/1000}$, or **`r theo_sd`**.
+
+We'll take a closer look to see how the density plot of our collection of means compares to a normal distribution.
+
+```{r}
+plot_density <- function(data,
+                         norm_dist, 
+                         title = 'Density plot of means of 1000 random exponential distributions',
+                         subtitle = 'Compared to the normal distribution',
+                         xlabel = 'Mean', 
+                         mean_of_means = 0
+                         ) {
+    
+    p <- ggplot(data, aes(x=means)) +
+        
+         # Make our first curve a density function of the sample means
+         geom_density(color="blue") +
+        
+         # Make our second curve a density function of the normal distribution
+         stat_function(fun = dnorm, args = list(mean = 5, sd = 5*sqrt(25/1000)), color='red') +
+        
+         # Label our plot
+         ggtitle( bquote( atop(.(title), atop(.(subtitle), '') ) ) ) +
+         xlab(xlabel)
+    p
+}
+
+plot_density(mns_count)
+```
+
+The density plot (blue) roughly approximates the normal distribution (red), confirming the Central Limit Theorem.

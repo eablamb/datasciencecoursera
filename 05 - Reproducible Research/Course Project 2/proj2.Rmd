@@ -1,0 +1,304 @@
+---
+title: "Exploring the NOAA Storm Database"
+output: html_document
+---
+
+
+
+## Synopsis
+
+
+Data from the U.S. National Oceanic and Atmospheric Administration's Storm database was analyzed to determine the public health effects and economic impact of various disaster events.  The data analyzed spans January 1996 to November 2011.  For public health effects, fatalities and injuries are considered.  For economic effects, property and crop damage are analyzed.  A ranking of 13 event categories by their health and economic impacts are provided.
+
+
+
+## Data Processing
+
+
+#### Gathering the Data
+
+The data analyzed is from the U.S. National Oceanic and Atmospheric Administration's storm database.  This database includes information on major storms and weather events from 1950 to November 2011.  The following are steps to download and extract the NOAA data.
+
+1) Load the necessary libraries and adjust settings.
+
+```{r, message=FALSE, warning=FALSE}
+library(R.utils)
+library(plyr)
+library(sqldf)
+
+## To prevent R from showing scientific notation in output
+options("scipen" = 20)
+```
+
+2) Download storm data from the NOAA website.  Extract the contents of the archive to a CSV file.
+
+```{r, cache=TRUE}
+## Download the NOAA data
+file_url <- 'http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2'
+dest_file <- paste(getwd(),'repdata_data_StormData.csv.bz2',sep='/')
+
+if (!file.exists(dest_file)) {
+    download.file(url = file_url, destfile = dest_file)
+    
+    ## Extract the contents
+    bunzip2(filename = dest_file)
+}
+```
+
+3) Load the CSV data into a data frame.
+```{r, cache = TRUE}
+noaa_data <- read.csv(file = 'repdata_data_StormData.csv')
+```
+
+#### Filtering the data
+
+For this analysis, we will only be considering the health and economic impact of recorded events.  The following fields will be included in the analysis:
+
+    * Events
+        - EVTYPE
+    * Health Effects
+        - FATALITIES
+        - INJURIES
+    * Economic Effects
+        - PROPDMG
+        - PROPDMGEXP
+        - CROPDMG
+        - CROPDMGEXP
+
+Furthermore, the NOAA Storm Events Database had only included a comprehensive record of *all* events since January 1996.  Before then, only a limited set of events were recorded.  From January 1955 to January 1996 only tornado, thunderstorm wind, and hail events were recorded, and from January 1950 to January 1955, only tornado events were recorded.  We must restrict our analysis to events recorded after January 1996.  
+
+```{r, cache=TRUE}
+get_amount <- function(x, exp) {
+    ## Return amount `x` multiplied by a constant factor `exp`
+    ret <- x
+    if (toupper(exp) == 'M') {
+        ret <- ret * 1000000
+    } 
+    else if (toupper(exp) == 'K') {
+        ret <- ret * 1000
+    } 
+    ret
+}
+
+## only extract data since January 1996
+all_events_data <- noaa_data
+all_events_data$BGN_DATE <- as.Date(all_events_data$BGN_DATE, 
+                                    format = '%m/%d/%Y %H:%M:%S')
+all_events_data <- subset(all_events_data, 
+                          all_events_data$BGN_DATE >= as.Date("1996-01-01"))
+
+## Only extract relevant columns
+filtered_data <- data.frame(EVTYPE=all_events_data$EVTYPE,
+                            FATALITIES=all_events_data$FATALITIES,
+                            INJURIES=all_events_data$INJURIES,
+                            PROPDMG=mapply(get_amount, 
+                                           all_events_data$PROPDMG,
+                                           all_events_data$PROPDMGEXP),
+                            CROPDMG=mapply(get_amount,
+                                           all_events_data$CROPDMG,
+                                           all_events_data$CROPDMGEXP))
+
+## No longer need `all_events_data`
+rm(all_events_data)
+```
+
+We would like to gather and rank the events based on certain criteria.  However, the events (EVTYPE) are not logged consistently.  For example, consider the events "SNOW", "SNOW/ICE", and "ICE STORM/FLASH FLOOD".  These are not 3 distinct events, but rather three groupings of events containing distinct, overlapping events.  Therefore, we must extract the appropriate distinct event(s) from each EVTYPE entry.
+
+For our analysis, we shall restrict the possible events to:
+
+    * Tornadoes
+    * Oceanic Events (includes hurricanes, tropical storms, and typhoons)
+    * Floods
+    * Rain (includes events labelled as "precipitation")
+    * High Winds
+    * Blizzards
+    * Snow/Ice Events
+    * Extreme Cold (includes only temperature measurements, not considering snow/ice.  Does include "freeze" events)
+    * Extreme Heat
+    * Extreme Dry Conditions
+    * Fires
+    * Fog Events
+    * Dust Events
+    * Volcanic Events
+
+```{r, cache=TRUE}
+categorized_data <- list()
+patterns <- c('TORNADO', 
+              'HURRICANE|TROPICAL|TYPHOON',
+              'FLOOD',
+              'RAIN|PRECIP',
+              'WIND',
+              'BLIZZARD',
+              'SNOW|ICE',
+              'COLD|FREEZE|LOW TEMP',
+              'HEAT|HIGH TEMP',
+              'DRY',
+              'FIRE',
+              'FOG',
+              'VOLCAN'
+             )
+
+# Shorten the category names for clean plots
+event_names <- patterns
+event_names[[2]] <- 'OCEANIC'
+event_names[[4]] <- 'RAIN'
+event_names[[7]] <- 'SNOW/ICE'
+event_names[[8]] <- 'COLD'
+event_names[[9]] <- 'HEAT'
+event_names[[13]] <- 'VOLCANIC'
+
+## Re-categorize the data
+for (i in seq_along(patterns)) {
+    event_data <- subset(filtered_data, grepl(pattern = patterns[[i]],
+                                              x = filtered_data$EVTYPE,
+                                              ignore.case = TRUE))
+    event_data$EVTYPE = event_names[[i]]
+    categorized_data[[i]] <- event_data
+}
+categorized_data <- ldply(categorized_data)
+
+## Filtered set is no longer needed
+rm(filtered_data)
+
+```
+
+
+#### Analysis of Data
+
+Once the data has been properly categorized, we can rank the events based on their overall effects.
+
+
+###### Health effects
+
+For health effects, we will gather:
+
+    * Total fatalities
+    * Total injuries
+
+```{r, cache=FALSE, message=FALSE} 
+health_data <- sqldf('SELECT EVTYPE, 
+                             SUM(FATALITIES) AS TOTAL_FATAL,
+                             AVG(FATALITIES) AS AVG_FATAL,
+                             SUM(INJURIES) AS TOTAL_INJURE,
+                             AVG(INJURIES) AS AVG_INJURE
+                     FROM categorized_data
+                     GROUP BY EVTYPE')
+```
+
+
+###### Economic effects
+
+For economic effects, we will gather:
+
+    * Total property damage
+    * Average property damage per event
+    * Total crop damage
+    * Average crop damage per event
+    * Total absolute monetary loss (property + crop damage)
+    * Average absolute monetary loss (property + crop damage)
+
+```{r, cache=FALSE, message=FALSE}
+econ_data <- sqldf('SELECT EVTYPE, 
+                           SUM(PROPDMG) AS TOTAL_PROPDMG,
+                           AVG(PROPDMG) AS AVG_PROPDMG,
+                           SUM(CROPDMG) AS TOTAL_CROPDMG, 
+                           AVG(CROPDMG) AS AVG_CROPDMG
+                   FROM categorized_data
+                   GROUP BY EVTYPE')
+econ_data$TOTAL_ABSDMG <- econ_data$TOTAL_PROPDMG + econ_data$TOTAL_CROPDMG
+econ_data$AVG_ABSDMG <- econ_data$AVG_PROPDMG + econ_data$AVG_CROPDMG
+```
+
+
+
+## Results
+
+Below are figures for the health and economic impacts of disaster events.  Raw figures are included in the appendix.
+
+
+#### Health Impact of Events
+```{r, message=FALSE, cache=FALSE, warning=FALSE}
+health_matrix <- data.matrix(health_data[,c(2,4)])
+rownames(health_matrix) <- health_data$EVTYPE
+
+health_matrix_t <- t(health_matrix)
+
+## For numbers
+tornado_stats <- health_matrix_t[,11]
+heat_stats <- health_matrix_t[,5] 
+top_stats <- health_matrix_t[,c(5,7,13)]
+rest_stats <- health_matrix_t[,c(-5,-7,-11,-13)]
+
+par(mar = c(7.1, 4.1, 5.1, 7.1), xpd = TRUE)
+barplot(health_matrix_t, 
+        col = heat.colors(length(rownames(health_matrix_t))), 
+        main = 'Injuries/Deaths',
+        width = 2, 
+        beside = TRUE,
+        las = 2)
+legend("topright", 
+       inset = c(-0.25, 0), 
+       fill = heat.colors(length(rownames(health_matrix_t))), 
+       legend = c('Fatalities','Injuries'))
+```
+
+
+The figure above shows the total fatalities and injuries caused by disaster events since 1996.  Heat events dominate total fatalities, with `r heat_stats[1]` fatalities, while tornadoes dominate injuries, with `r tornado_stats[2]` injuries.  Floods, high winds, tornadoes and extreme heat events dominate both counts overall, with `r sum(top_stats[1,])` fatalities and `r sum(top_stats[2,])` injuries (combined).  All other events combined totalled `r sum(rest_stats[1,])` fatalities and `r sum(rest_stats[2,])` injuries.
+
+
+#### Economic Effects of Events
+```{r, cache=FALSE, warning = FALSE}
+econ_matrix <- data.matrix(econ_data[,c(2,4)])
+rownames(econ_matrix) <- econ_data$EVTYPE
+econ_matrix_t <- t(econ_matrix)
+
+par(mar = c(7.1, 6.25, 5.1, 7.1), xpd = TRUE)
+barplot(econ_matrix_t, 
+        col = heat.colors(length(rownames(econ_matrix_t))), 
+        main = 'Economic Loss (in USD)',
+        width = 2, 
+        beside = TRUE,
+        las = 2)
+legend("topright", 
+       inset = c(-0.25, 0), 
+       fill = heat.colors(length(rownames(econ_matrix_t))), 
+       legend = c('Property Damage','Crop Damage'))
+```
+
+This figure shows the total economic loss for all events since 1996.  Tornadoes again occupy a top spot, here for property damage.  Meanwhile, floods are the leading cause of crop damage.  Oceanic events, fires, and high winds are also significant contributers to property damage, while extreme cold events contribute a large portion of crop failures.  All other events appear to be negligible.
+
+```{r, cache=FALSE}
+avgs <- econ_data[,c(1,3,5,7)] 
+avg_matrix <- data.matrix(avgs[,2:4])
+rownames(avg_matrix) <- health_data$EVTYPE
+
+avg_matrix_t <- t(avg_matrix)
+
+par(mar = c(7.1, 6.25, 5.1, 7.1), xpd = TRUE)
+barplot(avg_matrix_t, 
+        col = heat.colors(length(rownames(avg_matrix_t))), 
+        main = 'Average Economic Impact',
+        width = 2, 
+        beside = TRUE,
+        las = 2)
+legend("topright", 
+       inset = c(-0.25, 0), 
+       fill = heat.colors(length(rownames(avg_matrix_t))), 
+       legend = c('Avg. Prop. Damage', 
+                  'Avg. Crop Damage',
+                  'Avg. Overall Damage'))
+```
+
+When looking at the averages for economic losses, a different picture emerges.  While tornadoes occupied a top spot for total property damage, per event they cost very little.  Instead, we see that Oceanic events (hurricanes, typhoons, and tropical storms) are the most costly events.
+
+## Appendix
+
+#### Health data
+```{r} 
+health_data
+```
+
+#### Economic data
+```{r} 
+econ_data
+```
