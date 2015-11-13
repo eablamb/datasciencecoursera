@@ -7,9 +7,21 @@ output: html_document
 
 ```{r Load Data, echo = FALSE, message = FALSE, warning = FALSE}
 
+## Criteria to judge
+# Did the student do some exploratory data analyses?
+# Did the student interpret the coefficients correctly?
+# Did the student fit multiple models and detail their strategy for model selection?
+# Did the student answer the questions of interest or detail why the question(s) is (are) not answerable?
+# Did the student do a residual plot and some diagnostics?
+# Did the student quantify the uncertainty in their conclusions and/or perform an inference correctly?
+# Was the report brief (about 2 pages long) for the main body of the report and no longer than 5 with supporting appendix of figures?
+# Did the report include an executive summary?
+# Was the report done in Rmd (knitr)?
+
+
 library(ggplot2)
 library(ggthemes)
-library(grid)
+# library(grid)
 library(dplyr)
 # library(reshape2)
 library(knitr)
@@ -87,6 +99,16 @@ corrplot::corrplot(mtcars.cor,
     
 ```
 
+There appears to be a positive correlation between manual transmission and MPG, given no other variables.  However, there are many other variables with stronger correlations to MPG, so we must make sure to control for these variables in our regression model.
+
+We see strong negative correlations between MPG and weight, horsepower, number of cylinders, and displacement.  There is also a slight negative correlation between MPG and number of carburetors.  
+
+We also see positive correlations between MPG and 1/4th mile time, straight (instead of V) engines, rear-axle ratio, and number of forward gears, although the degree of correlation is not as strong as for variables which were negatively correlated.
+
+Finally, we see a positive correlation between our variables of interest, MPG and manual transmission.  We can use this knowledge to guide the model building process as we further explore the data.
+
+#### 
+
 ### Baseline Relationship Between MPG and Transmission Type
 
 First, let's look at the mean MPG for all cars sampled when only considering transmission type.
@@ -111,6 +133,8 @@ qplot(.fitted, .resid, data = fit.a) +
 
 
 ```
+
+Starting out, it looks like automatic transmission on average delivers superior fuel economy than manual transmission.  However, "common knowledge" states that automatic cars are less fuel efficient than manual cars.  Automatic cars use a torque converter to switch between gears, which can be less efficient than a clutch when switching between gears, especially on older vehicles with fewer gears.
 
 ### Car Weight as a Confounder
 
