@@ -138,6 +138,8 @@ Starting out, it looks like automatic transmission on average delivers superior 
 
 ### Car Weight as a Confounder
 
+One thing we need to look at is how weight affects MPG, as well as if there is any 
+
 ```{r, fig.width = 10, fig.height = 6.4}
 
 breaks <- seq(0, 35, by = 5)
