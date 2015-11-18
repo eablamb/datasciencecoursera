@@ -34,7 +34,7 @@ data(mtcars)
 cars <- as.data.frame(mtcars)
 cars$names <- row.names(mtcars)
 cars$am <- factor(cars$am, 
-                  labels = c('Manual', 'Automatic'))
+                  labels = c('Automatic', 'Manual'))
 cars$vs <- factor(cars$vs,
                   labels = c('V engine', 'Straight engine'))
 cars$wt.lbs <- cars$wt * 2000
@@ -53,11 +53,27 @@ We must answer two questions:
 
 ## Data Summary
 
+Our data includes MPG and 10 aspects of automobile design and performance for 32 automobiles featured in the 1974 US edition of *Motor Trend* magazine.
+
 ```{r}
 
 kable(mtcars)
 
 ```
+
+| Factor | Definition                               |
+|:-------|:-----------------------------------------|
+| mpg	   | Miles/(US) gallon                        |
+| cyl    | Number of cylinders                      |
+| disp	 | Displacement (cu.in.)                    |
+| hp	   | Gross horsepower                         |
+| drat	 | Rear axle ratio                          |
+| wt	   | Weight (lb/1000)                         |
+| qsec	 | 1/4 mile time                            |
+| vs     | V/S                                      |
+| am	   | Transmission (0 = automatic, 1 = manual) |
+| gear	 | Number of forward gears                  |
+| carb	 | Number of carburetors                    |
 
 ---
 
@@ -113,18 +129,19 @@ Finally, we see a positive correlation between our variables of interest, MPG an
 
 First, let's look at the mean MPG for all cars sampled when only considering transmission type.
 
-```{r}
+```{r, warning = FALSE, message = FALSE}
 
 cars.am.mpg_stats <- cars %>%
     dplyr::group_by(am) %>%
     dplyr::summarize(mean.mpg = mean(mpg),
+                     mean.wt.lbs = mean(wt.lbs),
                      min.wt.lbs = min(wt.lbs),
                      max.wt.lbs = max(wt.lbs))
 
 fit.a <- lm(mpg ~ factor(am) - 1, data = cars)
 fit.a.summary <- summary(fit.a)
 fit.a.coef <- coef(fit.a.summary)
-row.names(fit.a.coef) <- c('Manual','Automatic')
+row.names(fit.a.coef) <- c('Automatic','Manual')
 kable(fit.a.coef)
 
 qplot(.fitted, .resid, data = fit.a) +
@@ -134,11 +151,11 @@ qplot(.fitted, .resid, data = fit.a) +
 
 ```
 
-Starting out, it looks like automatic transmission on average delivers superior fuel economy than manual transmission.  However, "common knowledge" states that automatic cars are less fuel efficient than manual cars.  Automatic cars use a torque converter to switch between gears, which can be less efficient than a clutch when switching between gears, especially on older vehicles with fewer gears.
+Starting out, it looks like automatic transmission on average delivers superior fuel economy than manual transmission.  However, "common knowledge" states that automatic cars are less fuel efficient than manual cars.  Automatic cars use a torque converter to switch between gears, which can be less efficient than a clutch, especially on older vehicles with fewer gears.
 
 ### Car Weight as a Confounder
 
-One thing we need to look at is how weight affects MPG, as well as if there is any 
+One thing we need to look at is how weight affects MPG, as well as look into any correlation between weight and transmission inherent in our data.
 
 ```{r, fig.width = 10, fig.height = 6.4}
 
@@ -163,6 +180,8 @@ p
 
 ```
 
+In our data, cars with manual transmission are, on average, much lighter than cars wih automatic transmission.  When we control for weight, we get an entirely different picture:  
+
 
 ```{r, fig.width = 10, fig.height = 6.4}
 
@@ -177,11 +196,11 @@ p <- ggplot(cars, aes(x = wt.lbs, y = mpg, color = am)) +
      scale_y_continuous('MPG',
                         breaks = breaks) +
      geom_vline(data = cars.am.mpg_stats[cars.am.mpg_stats$am == 'Manual',], 
-           aes(xintercept = min.wt.lbs),
+           aes(xintercept = max.wt.lbs),
            size = 1.0,
            linetype = 'dashed') +
     geom_vline(data = cars.am.mpg_stats[cars.am.mpg_stats$am == 'Automatic',], 
-           aes(xintercept = max.wt.lbs),
+           aes(xintercept = min.wt.lbs),
            size = 1.0,
            linetype = 'dashed') +
      theme(axis.text.x = element_text())
@@ -227,6 +246,24 @@ p
 
 ```
 
+### Number of Gears
+
+```{r}
+p <- ggplot(cars, aes(x = wt.lbs, y = mpg, color = factor(gear))) + 
+     geom_point(size = 3.0) +
+     stat_smooth(aes(group = factor(gear)),
+                 # formula = y ~ 1,
+                 method = 'lm', 
+                 size = 1.0) + 
+     scale_color_discrete('Number of Gears') +
+     scale_x_continuous('Weight (in lbs)', 
+                        labels = scales::comma) +
+     scale_y_continuous('MPG',
+                        breaks = breaks) +
+     theme(axis.text.x = element_text())
+p
+
+```
 
 ## Model Selection
 
