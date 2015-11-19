@@ -48,12 +48,7 @@ ans <- round(exp(coef(fit))[2], 3)
 
 If you fit a logistic regression model to a binary variable, for example use of the autolander, then fit a logistic regression model for one minus the outcome (not using the autolander) what happens to the coefficients?
 
-Answer:
-
-The coefficients change in a non-linear fashion.
-The coefficients get inverted (one over their previous value).
-The coefficients reverse their signs.
-The intercept changes sign, but the other coefficients don't. 
+**Answer:** The coefficients reverse their signs.
 
 ## Question 4
 
