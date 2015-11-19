@@ -54,27 +54,29 @@ If you fit a logistic regression model to a binary variable, for example use of 
 
 Consider the insect spray data `InsectSprays`.  Fit a Poisson model using spray as a factor level.  Report the estimated relative rate comparing spray A (numerator) to spray B (denominator).
 
-How is the wt coefficient interpretted?
+```{r, message = FALSE}
+data(InsectSprays)
+fit <- glm(count ~ factor(spray) - 1,
+           data = InsectSprays,
+           family = 'poisson')
+X <- coef(fit)
 
-Answer:
+## The expected relative increase in a unit change for regressor beta_1 = exp(beta_1)
+ans <- round(exp(X)[1]/exp(X)[2], 4)
+```
 
--0.056
-0.9457
-0.321
-0.136 
-
-**The estimated expected change in MPG per one ton increase in weight for a specific number of cylinders (4, 6, 8).**
+**Answer:** `r ans`
 
 ## Question 5
 
-Consider a Poisson glm with an offset, ***t***. So, for example, a model of the form `glm(count ~ x + offset(t), family = poisson)` where `x` is a factor variable comparing a treatment (1) to a control (0) and `t` is the natural log of a monitoring time. What is impact of the coefficient for `x` if we fit the model `glm(count ~ x + offset(t2), family = poisson)` where `t2 <- log(10) + t`? In other words, what happens to the coefficients if we change the units of the offset variable. (Note, adding log(10) on the log scale is multiplying by 10 on the original scale.)
+Consider a Poisson glm with an offset, ***t***. So, for example, a model of the form `glm(count ~ x + offset(t), family = 'poisson')` where `x` is a factor variable comparing a treatment (1) to a control (0) and `t` is the natural log of a monitoring time. What is impact of the coefficient for `x` if we fit the model `glm(count ~ x + offset(t2), family = poisson)` where `t2 <- log(10) + t`? In other words, what happens to the coefficients if we change the units of the offset variable. (Note, adding log(10) on the log scale is multiplying by 10 on the original scale.)
 
 Answer:
 
-The coefficient is subtracted by log(10).
-The coefficient estimate is unchanged
-The coefficient estimate is divided by 10.
-The coefficient estimate is multiplied by 10. 
+a. The coefficient is subtracted by log(10).
+b. The coefficient estimate is unchanged
+c. The coefficient estimate is divided by 10.
+d. The coefficient estimate is multiplied by 10. 
 
 ## Question 6
 
@@ -89,3 +91,7 @@ Using a knot point at 0, fit a linear model that looks like a hockey stick with 
 
 Answer:
 
+a. 1.013
+b. -0.183
+c. -1.024
+d. 2.037

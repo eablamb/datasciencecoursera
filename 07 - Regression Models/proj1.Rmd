@@ -37,7 +37,7 @@ cars$am <- factor(cars$am,
                   labels = c('Automatic', 'Manual'))
 cars$vs <- factor(cars$vs,
                   labels = c('V engine', 'Straight engine'))
-cars$wt.lbs <- cars$wt * 2000
+cars$wt.lbs <- cars$wt * 1000
 
 ```
 
@@ -151,7 +151,7 @@ qplot(.fitted, .resid, data = fit.a) +
 
 ```
 
-Starting out, it looks like automatic transmission on average delivers superior fuel economy than manual transmission.  However, "common knowledge" states that automatic cars are less fuel efficient than manual cars.  Automatic cars use a torque converter to switch between gears, which can be less efficient than a clutch, especially on older vehicles with fewer gears.
+Starting out, it looks like manual transmission on average delivers superior fuel economy than automatic transmission.  This seems to confirm "common knowledge", which states that automatic cars are less fuel efficient than manual cars.  Automatic cars use a torque converter to switch between gears, which can be less efficient than a clutch, especially on older vehicles with fewer gears.
 
 ### Car Weight as a Confounder
 
@@ -207,6 +207,8 @@ p <- ggplot(cars, aes(x = wt.lbs, y = mpg, color = am)) +
 p
 
 ```
+
+Look at the cars in the weight range where automatic and manual transmission overlap (roughly between 2,500 and 3,500 lbs).  Here we notice an opposite trend.  Cars with automatic transmission tend to have better gas milage than ones with manual transmission.
 
 ### V vs. Straight Engines
 
