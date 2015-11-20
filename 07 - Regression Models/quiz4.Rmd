@@ -69,14 +69,9 @@ ans <- round(exp(X)[1]/exp(X)[2], 4)
 
 ## Question 5
 
-Consider a Poisson glm with an offset, ***t***. So, for example, a model of the form `glm(count ~ x + offset(t), family = 'poisson')` where `x` is a factor variable comparing a treatment (1) to a control (0) and `t` is the natural log of a monitoring time. What is impact of the coefficient for `x` if we fit the model `glm(count ~ x + offset(t2), family = poisson)` where `t2 <- log(10) + t`? In other words, what happens to the coefficients if we change the units of the offset variable. (Note, adding log(10) on the log scale is multiplying by 10 on the original scale.)
+Consider a Poisson glm with an offset, ***t***. So, for example, a model of the form `glm(count ~ x + offset(t), family = 'poisson')` where `x` is a factor variable comparing a treatment (1) to a control (0) and `t` is the natural log of a monitoring time. What is impact of the coefficient for `x` if we fit the model `glm(count ~ x + offset(t2), family = 'poisson')` where `t2 <- log(10) + t`? In other words, what happens to the coefficients if we change the units of the offset variable. (Note, adding log(10) on the log scale is multiplying by 10 on the original scale.)
 
-Answer:
-
-a. The coefficient is subtracted by log(10).
-b. The coefficient estimate is unchanged
-c. The coefficient estimate is divided by 10.
-d. The coefficient estimate is multiplied by 10. 
+**Answer:** The coeficient estimate is unchanged.
 
 ## Question 6
 
@@ -89,9 +84,20 @@ y <- c(5.12, 3.93, 2.67, 1.87, 0.52, 0.08, 0.93, 2.05, 2.54, 3.87, 4.97)
 
 Using a knot point at 0, fit a linear model that looks like a hockey stick with two lines meeting at x=0. Include an intercept term, x and the knot point term. What is the estimated slope of the line after 0?
 
-Answer:
+```{r}
+## the break points of the spline fit
+knots <- c(0)
 
-a. 1.013
-b. -0.183
-c. -1.024
-d. 2.037
+## building the regression spline terms
+splineTerms <- sapply(knots, function(knot) (x > knot) * (x - knot))
+
+## adding an intercept and the linear term
+xMat <- cbind(1, x, splineTerms)
+
+## fit the model, notice the intercept is in xMat so we have -1
+yhat <- predict(lm(y ~ xMat - 1))
+
+ans <- diff(yhat[6:7])
+```
+
+Answer: `r ans`

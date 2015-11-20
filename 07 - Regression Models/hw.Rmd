@@ -1,0 +1,36 @@
+---
+title: 'Regression Models: Homework'
+author: "Eugene Lamb"
+date: "Friday, November 20, 2015"
+output: html_document
+---
+
+```{r, echo=FALSE}
+options(scipen=999)
+```
+
+## Count Data
+
+### Exercises
+
+1. Load the dataset `Seatbelts` as part of the `datasets` package via `data(Seatbelts)`. Use `as.data.frame` to convert the object to a dataframe. Fit a Poisson regression GLM with `UKDriversKilled` as the outcome and `kms`, `PetrolPrice` and `law` as predictors. Interpret your results.
+
+```{r}
+data(Seatbelts)
+sb <- as.data.frame(Seatbelts)
+fit <- glm(DriversKilled ~ kms + PetrolPrice + law,
+           data = sb,
+           family = "poisson")
+summary(fit)
+
+E <- function(x) {
+    ifelse(x > 0, exp(x) - 1, -exp(-x) + 1)
+}
+E(coef(fit))
+```
+
+2. Refer to question 1. Fit a linear model with the log of drivers killed as the outcome. Interpret your results.
+
+3. Refer to question 1. Fit your Poisson log-linear model with drivers as a log offset (to consider the proportion of drivers killed of those killed or seriously injured.)
+
+4. Refer to Question 1. Use the anova function to compare models with just law, law and PetrolPrice and all three predictors.
