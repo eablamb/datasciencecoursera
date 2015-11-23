@@ -6,6 +6,9 @@ output: html_document
 ---
 
 ```{r, echo=FALSE}
+library(UsingR)
+library(ggplot2)
+
 options(scipen=999)
 ```
 
@@ -13,24 +16,80 @@ options(scipen=999)
 
 ### Exercises
 
-1. Load the dataset `Seatbelts` as part of the `datasets` package via `data(Seatbelts)`. Use `as.data.frame` to convert the object to a dataframe. Fit a Poisson regression GLM with `UKDriversKilled` as the outcome and `kms`, `PetrolPrice` and `law` as predictors. Interpret your results.
+1. Load the dataset `Seatbelts` as part of the `datasets` package via `data(Seatbelts)`. Use `as.data.frame` to convert the object to a dataframe. Fit a Poisson regression GLM with `DriversKilled` as the outcome and `kms`, `PetrolPrice` and `law` as predictors. Interpret your results.
 
+First, load the data:
 ```{r}
 data(Seatbelts)
 sb <- as.data.frame(Seatbelts)
-fit <- glm(DriversKilled ~ kms + PetrolPrice + law,
+```
+
+Then fit the data using a Poisson GLM:
+```{r}
+fit <- glm(DriversKilled ~ I(kms - mean(kms)) + 
+                           I(log(PetrolPrice) - log(mean(PetrolPrice))) + law,
            data = sb,
            family = "poisson")
 summary(fit)
 
 E <- function(x) {
-    ifelse(x > 0, exp(x) - 1, -exp(-x) + 1)
+    ifelse(x > 0, exp(x), 1 - exp(-x))
 }
 E(coef(fit))
 ```
 
+The regression yields coefficients for the effect of `kms` (distance driven), `PetrolPrice` (price per liter in pounds sterling), `law` (binary variable for whether or not a seatbelt law was in effect), and an intercept (baseline).  These coefficients are estimates of the mean number of drivers killed for a month.  If we exponentiate the terms, we have our estimated mean. 
+
 2. Refer to question 1. Fit a linear model with the log of drivers killed as the outcome. Interpret your results.
+
+```{r, warning = FALSE}
+fit <- glm(I(log(DriversKilled)) ~ kms + PetrolPrice + law,
+           data = sb,
+           family = "poisson")
+summary(fit)
+E(coef(fit))
+```
 
 3. Refer to question 1. Fit your Poisson log-linear model with drivers as a log offset (to consider the proportion of drivers killed of those killed or seriously injured.)
 
 4. Refer to Question 1. Use the anova function to compare models with just law, law and PetrolPrice and all three predictors.
+
+## Residuals
+
+1. Fit a linear regression model to the `father.son` dataset with the father as the predictor and the son as the outcome. Plot the son's height (horizontal axis) versus the residuals (vertical axis).
+
+```{r}
+
+
+data(father.son)
+fit <- lm(sheight ~ fheight, data = father.son)
+ggplot(data = father.son, aes(x = sheight)) + 
+    geom_point(aes(y = fit$residuals)) +
+    scale_x_continuous("Son's height") +
+    scale_y_continuous("Residuals")
+
+```
+
+2. Refer to question 1. Directly estimate the residual variance and compare this estimate to the output of `lm`.
+
+
+3. Refer to question 1. Give the R squared for this model.
+
+
+4. Load the `mtcars` dataset. Fit a linear regression with miles per gallon as the outcome and horsepower as the predictor. Plot horsepower versus the residuals.
+
+5. Refer to question 4. Directly estimate the residual variance and compare this estimate to the output of `lm`.
+
+6. Refer to question 4. Give the R squared for this model. Watch a video solution.
+
+### Exercises
+
+## Residuals, variation, diagnostics
+
+### Exercises
+
+## Regression inference
+
+### Exercises
+
+
