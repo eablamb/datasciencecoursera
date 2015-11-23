@@ -97,6 +97,7 @@ xMat <- cbind(1, x, splineTerms)
 ## fit the model, notice the intercept is in xMat so we have -1
 yhat <- predict(lm(y ~ xMat - 1))
 
+## Slope = (y1 - y2) / (x1 - x2)
 ans <- diff(yhat[6:7])
 ```
 
