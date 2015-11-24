@@ -5,46 +5,58 @@ date: "Friday, November 20, 2015"
 output: html_document
 ---
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, message=FALSE}
 library(UsingR)
 library(ggplot2)
+library(dplyr)
+library(knitr)
 
 options(scipen=999)
 ```
 
 ## Count Data
 
-### Exercises
-
 1. Load the dataset `Seatbelts` as part of the `datasets` package via `data(Seatbelts)`. Use `as.data.frame` to convert the object to a dataframe. Fit a Poisson regression GLM with `DriversKilled` as the outcome and `kms`, `PetrolPrice` and `law` as predictors. Interpret your results.
 
 First, load the data:
 ```{r}
 data(Seatbelts)
-sb <- as.data.frame(Seatbelts)
+
+### Normalize petrol price
+### Scale distance travel to 1000 km units and center at the mean
+seatbelts <- as.data.frame(Seatbelts) %>%
+    mutate(pp = (PetrolPrice - mean(PetrolPrice)) / sd(PetrolPrice),
+           mm = kms / 1000,
+           mmc = mm - mean(mm))
 ```
 
 Then fit the data using a Poisson GLM:
 ```{r}
-fit <- glm(DriversKilled ~ I(kms - mean(kms)) + 
-                           I(log(PetrolPrice) - log(mean(PetrolPrice))) + law,
-           data = sb,
+fit <- glm(DriversKilled ~ mmc + pp + law,
+           data = seatbelts,
            family = "poisson")
-summary(fit)
+fit.summary <- summary(fit)
 
+kable(fit.summary$coefficients)
+```
+
+Exponentiate to get the coefficients expressed as mean number of drivers killed:
+```{r}
 E <- function(x) {
     ifelse(x > 0, exp(x), 1 - exp(-x))
 }
-E(coef(fit))
+coefs <- data.frame(Estimate=E(coef(fit)))
+
+kable(coefs)
 ```
 
-The regression yields coefficients for the effect of `kms` (distance driven), `PetrolPrice` (price per liter in pounds sterling), `law` (binary variable for whether or not a seatbelt law was in effect), and an intercept (baseline).  These coefficients are estimates of the mean number of drivers killed for a month.  If we exponentiate the terms, we have our estimated mean. 
+The regression yields coefficients for the effect of `mmc` (distance driven, 1000 km units over the mean), `PetrolPrice` (real price per liter in pounds sterling, normalized), `law` (binary variable for whether or not a seatbelt law was in effect), and an intercept (baseline).  These coefficients are estimates of the mean number of drivers killed for a month.  If we exponentiate the terms, we have our estimated mean. 
 
 2. Refer to question 1. Fit a linear model with the log of drivers killed as the outcome. Interpret your results.
 
 ```{r, warning = FALSE}
-fit <- glm(I(log(DriversKilled)) ~ kms + PetrolPrice + law,
-           data = sb,
+fit <- glm(I(log(DriversKilled)) ~ mmc + pp + law,
+           data = seatbelts,
            family = "poisson")
 summary(fit)
 E(coef(fit))
@@ -59,37 +71,90 @@ E(coef(fit))
 1. Fit a linear regression model to the `father.son` dataset with the father as the predictor and the son as the outcome. Plot the son's height (horizontal axis) versus the residuals (vertical axis).
 
 ```{r}
-
-
 data(father.son)
-fit <- lm(sheight ~ fheight, data = father.son)
-ggplot(data = father.son, aes(x = sheight)) + 
-    geom_point(aes(y = fit$residuals)) +
-    scale_x_continuous("Son's height") +
-    scale_y_continuous("Residuals")
 
+fit <- lm(sheight ~ fheight, data = father.son)
+df <- data.frame(x = father.son$sheight, y = fit$residuals)
+ggplot(data = df, aes(x, y)) + 
+    geom_point() +
+    scale_x_continuous("Son's height") +
+    scale_y_continuous("Residuals") +
+    theme_bw()
 ```
 
 2. Refer to question 1. Directly estimate the residual variance and compare this estimate to the output of `lm`.
 
+Recall our assumption is $\epsilon_{i} \sim N(0,\sigma^{2})$, or that the residuals are normally distributed.
+
+An unbiased estimate of the residual variance, $\hat{\sigma}^{2}$, is:
+$$
+\hat{\sigma}^{2} = \dfrac{1}{n - 2} \sum_{i = 1}^{n} e_{i}^{2} 
+$$
+
+```{r}
+### Direct estimate of the residual variance
+y.hat <- predict(fit)
+e <- y.hat - father.son$sheight
+sigma.hat <- sqrt(sum(e**2 / (length(e) - 2)))
+
+### Estimate from summary.lm 
+fit.summary <- summary(fit)
+fit.sigma <- fit.summary$sigma
+
+a <- round(sigma.hat**2, 6); b <- round(fit.sigma**2, 6)
+ans <- ifelse(a == b, "Estimates match", "Bad estimate")
+```
+**`r ans`**
 
 3. Refer to question 1. Give the R squared for this model.
 
+```{r}
+ans <- fit.summary$r.squared
+```
+**`r ans`**
 
 4. Load the `mtcars` dataset. Fit a linear regression with miles per gallon as the outcome and horsepower as the predictor. Plot horsepower versus the residuals.
 
+```{r}
+data(mtcars)
+
+fit <- lm(mpg ~ hp, data = mtcars)
+df <- data.frame(x = mtcars$hp, y = fit$residuals)
+ggplot(df, aes(x, y)) +
+    geom_point() +
+    scale_x_continuous("Horsepower") +
+    scale_y_continuous("Residuals") +
+    theme_bw()
+```
+
 5. Refer to question 4. Directly estimate the residual variance and compare this estimate to the output of `lm`.
 
-6. Refer to question 4. Give the R squared for this model. Watch a video solution.
+```{r}
+### Direct estimate of the residual variance
+y.hat <- predict(fit)
+e <- y.hat - mtcars$mpg
+sigma.hat <- sqrt(sum(e**2 / (length(e) - 2)))
 
-### Exercises
+### Estimate from summary.lm 
+fit.summary <- summary(fit)
+fit.sigma <- fit.summary$sigma
+
+a <- round(sigma.hat**2, 6); b <- round(fit.sigma**2, 6)
+ans <- ifelse(a == b, "Estimates match", "Bad estimate")
+```
+**`r ans`**
+
+6. Refer to question 4. Give the R squared for this model.
+
+```{r}
+ans <- fit.summary$r.squared
+```
+**`r ans`**
 
 ## Residuals, variation, diagnostics
 
-### Exercises
 
 ## Regression inference
 
-### Exercises
 
 
