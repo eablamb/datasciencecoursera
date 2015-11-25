@@ -173,9 +173,58 @@ round(sigma.hat**2, 6) == round(sigma.fit**2, 6)
 
 3. Refer to question 1. Perform an analysis of diagnostic measures including `dffits`, `dfbetas`, influence and hat diagonals.
 
-```{r}
+#### Leverage
 
+* `hatvalues` - 
+
+```{r}
+fit.hatvalues <- sort(hatvalues(fit), decreasing = TRUE)
+head(fit.hatvalues)
 ```
+
+#### Influence
+
+* `dffits` - change in the predicted response when the $i^{th}$ point is deleted in fitting the model.
+
+```{r}
+fit.dffits <- round(dffits(fit), 3)
+which.dffits <- cbind(which.min(fit.dffits), which.max(fit.dffits))
+colnames(which.dffits) <- c("Min","Max")
+rownames(which.dffits) <- NULL
+```
+
+These points have the greatest influence on the outcome:
+```{r}
+kable(which.dffits)
+```
+
+* `dfbetas` - change in individual coefficients when the $i^{th}$ point is deleted in fitting the model.
+
+```{r}
+fit.dfbetas <- round(dfbetas(fit), 3)
+coef.dfbetas <- list(fit.dfbetas[,1], 
+                      fit.dfbetas[,2], 
+                      fit.dfbetas[,3], 
+                      fit.dfbetas[,4])
+which.dfbetas <- rbind(sapply(coef.dfbetas, which.min), 
+                       sapply(coef.dfbetas, which.max))
+colnames(which.dfbetas) <- names(fit$coefficients)
+rownames(which.dfbetas) <- c("Min", "Max")
+```
+
+These points have the greatest influence on the coefficients:
+```{r}
+kable(which.dfbetas)
+```
+
+* `cooks.distance` - overall change in the coefficients when the $i^{th}$ point is deleted.
+
+```{r}
+fit.cooks <- round(cooks.distance(fit), 3)
+which.cooks <- as.numeric(which.max(fit.cooks))
+```
+
+`r which.cooks`
 
 ## Regression inference
 
