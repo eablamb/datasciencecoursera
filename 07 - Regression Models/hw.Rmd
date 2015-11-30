@@ -5,7 +5,7 @@ date: "Friday, November 20, 2015"
 output: html_document
 ---
 
-```{r, echo=FALSE, message=FALSE}
+```{r, message=FALSE}
 library(UsingR)
 library(ggplot2)
 library(dplyr)
@@ -70,7 +70,7 @@ E(coef(fit))
 
 1. Fit a linear regression model to the `father.son` dataset with the father as the predictor and the son as the outcome. Plot the son's height (horizontal axis) versus the residuals (vertical axis).
 
-```{r}
+```{r fig.width = 9.6, fig.height = 6.4}
 data(father.son)
 
 fit <- lm(sheight ~ fheight, data = father.son)
@@ -115,7 +115,7 @@ ans <- fit.summary$r.squared
 
 4. Load the `mtcars` dataset. Fit a linear regression with miles per gallon as the outcome and horsepower as the predictor. Plot horsepower versus the residuals.
 
-```{r}
+```{r fig.width = 9.6, fig.height = 6.4}
 data(mtcars)
 
 fit <- lm(mpg ~ hp, data = mtcars)
@@ -177,9 +177,17 @@ round(sigma.hat**2, 6) == round(sigma.fit**2, 6)
 
 * `hatvalues` - 
 
-```{r}
+```{r, fig.width = 9.6, fig.height = 6.4}
 fit.hatvalues <- sort(hatvalues(fit), decreasing = TRUE)
-head(fit.hatvalues)
+plot(hatvalues(fit), ylab = "Hat Values (Leverage)")
+```
+
+These points have the highest hat values (leverage):
+
+```{r}
+top.hatvalues <- as.data.frame(head(fit.hatvalues, 5))
+names(top.hatvalues) <- c("Hat Values")
+kable(top.hatvalues)
 ```
 
 #### Influence
@@ -193,6 +201,10 @@ colnames(which.dffits) <- c("Min","Max")
 rownames(which.dffits) <- NULL
 ```
 
+```{r, fig.width = 9.6, fig.height = 6.4}
+plot(dffits(fit), ylab = "DFFITS")
+```
+
 These points have the greatest influence on the outcome:
 ```{r}
 kable(which.dffits)
@@ -200,20 +212,28 @@ kable(which.dffits)
 
 * `dfbetas` - change in individual coefficients when the $i^{th}$ point is deleted in fitting the model.
 
+```{r, fig.width = 9.6, fig.height = 6.4}
+plot(dfbetas(fit)[,1], ylab = "DFBETA (Intercept)")
+plot(dfbetas(fit)[,2], ylab = "DFBETA (Petrol Price)")
+plot(dfbetas(fit)[,3], ylab = "DFBETA (KMs Driven)")
+plot(dfbetas(fit)[,4], ylab = "DFBETA (Law in Effect)")
+```
+
+These points have the greatest influence on the coefficients:
 ```{r}
 fit.dfbetas <- round(dfbetas(fit), 3)
 coef.dfbetas <- list(fit.dfbetas[,1], 
                       fit.dfbetas[,2], 
                       fit.dfbetas[,3], 
                       fit.dfbetas[,4])
-which.dfbetas <- rbind(sapply(coef.dfbetas, which.min), 
-                       sapply(coef.dfbetas, which.max))
+which.dfbetas <- rbind(sapply(coef.dfbetas, 
+                              function(x) head(names(sort(x)), 5)), 
+                       sapply(coef.dfbetas, 
+                              function(x) head(names(sort(x, decreasing = TRUE)), 5)))
+which.dfbetas <- as.data.frame(which.dfbetas)
 colnames(which.dfbetas) <- names(fit$coefficients)
-rownames(which.dfbetas) <- c("Min", "Max")
-```
-
-These points have the greatest influence on the coefficients:
-```{r}
+which.dfbetas$type <- c(rep("Negative", 5), rep("Positive", 5))
+which.dfbetas$order <- c(seq(1, 5),seq(1, 5))
 kable(which.dfbetas)
 ```
 
@@ -224,7 +244,11 @@ fit.cooks <- round(cooks.distance(fit), 3)
 which.cooks <- as.numeric(which.max(fit.cooks))
 ```
 
-`r which.cooks`
+```{r, fig.width = 9.6, fig.height = 6.4}
+plot(cooks.distance(fit), ylab = "Cook's Distance")
+```
+
+**Highest Cook's Distance: `r which.cooks`**
 
 ## Regression inference
 

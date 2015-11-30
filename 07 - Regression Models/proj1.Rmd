@@ -30,7 +30,7 @@ library(corrplot)
 
 data(mtcars)
 
-## 
+## Additional Processing for Plots
 cars <- as.data.frame(mtcars)
 cars$names <- row.names(mtcars)
 cars$am <- factor(cars$am, 
@@ -38,6 +38,16 @@ cars$am <- factor(cars$am,
 cars$vs <- factor(cars$vs,
                   labels = c('V engine', 'Straight engine'))
 cars$wt.lbs <- cars$wt * 1000
+
+## Useful Functions
+resid.plot <- function(fit) {
+    ggplot(data = fit, aes(x = .fitted, y = .resid)) +
+        geom_hline(yintercept = 0) +
+        geom_point() +
+        scale_x_continuous("Fitted") +
+        scale_y_continuous("Residuals")  
+}
+
 
 ```
 
@@ -144,10 +154,7 @@ fit.a.coef <- coef(fit.a.summary)
 row.names(fit.a.coef) <- c('Automatic','Manual')
 kable(fit.a.coef)
 
-qplot(.fitted, .resid, data = fit.a) +
-  geom_hline(yintercept = 0) +
-  geom_smooth(se = FALSE)
-
+resid.plot(fit.a)
 
 ```
 
@@ -210,6 +217,11 @@ p
 
 Look at the cars in the weight range where automatic and manual transmission overlap (roughly between 2,500 and 3,500 lbs).  Here we notice an opposite trend.  Cars with automatic transmission tend to have better gas milage than ones with manual transmission.
 
+```{r}
+fit.c <- lm(mpg ~ factor(am) : wt, data = mtcars)
+resid.plot(fit.c)
+```
+
 ### V vs. Straight Engines
 
 ```{r, fig.width = 10, fig.height = 6.4}
@@ -246,6 +258,14 @@ p <- ggplot(cars, aes(x = wt.lbs, y = mpg, color = factor(cyl))) +
      theme(axis.text.x = element_text())
 p
 
+```
+
+```{r}
+fit.h <- lm(mpg ~ factor(am) : wt + factor(cyl), data = mtcars)
+resid.plot(fit.h)
+
+fit.i <- lm(mpg ~ factor(am) : wt + factor(am) : drat + factor(cyl), data = mtcars)
+resid.plot(fit.i)
 ```
 
 ### Number of Gears
