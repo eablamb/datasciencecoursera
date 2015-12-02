@@ -27,6 +27,7 @@ library(dplyr)
 library(knitr)
 library(scales)
 library(corrplot)
+library(car)
 
 data(mtcars)
 
@@ -133,6 +134,17 @@ We also see positive correlations between MPG and 1/4th mile time, straight (ins
 
 Finally, we see a positive correlation between our variables of interest, MPG and manual transmission.  We can use this knowledge to guide the model building process as we further explore the data.
 
+### Variance Inflation
+
+```{r}
+
+fit <- lm(mpg ~ ., data = mtcars)
+kable(data.frame(VIF=vif(fit)))
+
+```
+
+In a more technical sense, we want to avoid *variance inflation* that can result by including too many highly correlated variables.
+
 #### 
 
 ### Baseline Relationship Between MPG and Transmission Type
@@ -215,7 +227,7 @@ p
 
 ```
 
-Look at the cars in the weight range where automatic and manual transmission overlap (roughly between 2,500 and 3,500 lbs).  Here we notice an opposite trend.  Cars with automatic transmission tend to have better gas milage than ones with manual transmission.
+Look at the cars in the weight range where automatic and manual transmission overlap (roughly between 2,500 and 3,500 lbs).  It appears that when we compare different transmission types within the same weight class, we get noticeably different slopes and intercepts.  We also notice a completely different trend.  Cars with automatic transmission tend to have better gas milage than ones with manual transmission.  We should include weight as an interaction term.
 
 ```{r}
 fit.c <- lm(mpg ~ factor(am) : wt, data = mtcars)
