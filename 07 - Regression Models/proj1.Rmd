@@ -39,12 +39,13 @@ cars$am <- factor(cars$am,
 cars$vs <- factor(cars$vs,
                   labels = c('V engine', 'Straight engine'))
 cars$wt.lbs <- cars$wt * 1000
+cars$wtc <- cars$wt - mean(cars$wt)
 
 ## Useful Functions
 resid.plot <- function(fit) {
     ggplot(data = fit, aes(x = .fitted, y = .resid)) +
         geom_hline(yintercept = 0) +
-        geom_point() +
+        geom_point(size=3.0) +
         scale_x_continuous("Fitted") +
         scale_y_continuous("Residuals")  
 }
@@ -92,8 +93,7 @@ kable(mtcars)
 
 ### All-Pairs Correlation
 
-Let's take a look at which variables are correlate, to see if we can uncover some patterns in the data
-and hopefully restrict the number of predictors used in the regression.
+Let's examine the correlations between variables, to see if we can uncover some patterns in the data and hopefully restrict the number of predictors used in the regression.
 
 ```{r, fig.width = 6.4, fig.height = 6.4}
 
@@ -128,13 +128,16 @@ corrplot::corrplot(mtcars.cor,
 
 There appears to be a positive correlation between manual transmission and MPG, given no other variables.  However, there are many other variables with stronger correlations to MPG, so we must make sure to control for these variables in our regression model.
 
-We see strong negative correlations between MPG and weight, horsepower, number of cylinders, and displacement.  There is also a slight negative correlation between MPG and number of carburetors.  
+We see strong negative correlations between MPG and **weight**, **horsepower**, **number of cylinders**, and **displacement**.  There is also a slight negative correlation between MPG and **number of carburetors**.  
 
-We also see positive correlations between MPG and 1/4th mile time, straight (instead of V) engines, rear-axle ratio, and number of forward gears, although the degree of correlation is not as strong as for variables which were negatively correlated.
+We also see positive correlations between MPG and **1/4th mile time**, **straight (instead of V) engines**, **rear-axle ratio**, and **number of forward gears**, although the degree of correlation is not as strong as for variables which were negatively correlated.
 
-Finally, we see a positive correlation between our variables of interest, MPG and manual transmission.  We can use this knowledge to guide the model building process as we further explore the data.
+Finally, we see a positive correlation between our variables of interest, MPG and **manual transmission**.  We can use this knowledge to guide the model building process as we further explore the data.
 
 ### Variance Inflation
+
+Another thing we can look at is *variance inflation*.  This tells us how much the correlation between variables is inflating the standard error of the coefficients of our model.  In other words, it will tip us off to unnecessary variables included in our model.  Let's examine a 
+model with all possible explanatory variables included:
 
 ```{r}
 
@@ -143,7 +146,7 @@ kable(data.frame(VIF=vif(fit)))
 
 ```
 
-In a more technical sense, we want to avoid *variance inflation* that can result by including too many highly correlated variables.
+VIF confirms what we saw earlier: there are many inter-variable correlations within our data.  This also indicates that naively including all variables in our model is a bad idea, as it will inflate the standard error (actual, not estimated) of the coefficients.
 
 #### 
 
@@ -151,7 +154,7 @@ In a more technical sense, we want to avoid *variance inflation* that can result
 
 First, let's look at the mean MPG for all cars sampled when only considering transmission type.
 
-```{r, warning = FALSE, message = FALSE}
+```{r, fig.width = 10, fig.height = 6.4}
 
 cars.am.mpg_stats <- cars %>%
     dplyr::group_by(am) %>%
@@ -166,15 +169,19 @@ fit.a.coef <- coef(fit.a.summary)
 row.names(fit.a.coef) <- c('Automatic','Manual')
 kable(fit.a.coef)
 
-resid.plot(fit.a)
-
 ```
 
 Starting out, it looks like manual transmission on average delivers superior fuel economy than automatic transmission.  This seems to confirm "common knowledge", which states that automatic cars are less fuel efficient than manual cars.  Automatic cars use a torque converter to switch between gears, which can be less efficient than a clutch, especially on older vehicles with fewer gears.
 
+```{r, fig.width = 10, fig.height = 6.4}
+resid.plot(fit.a)
+```
+
+Our residual plot shows a much greater variation for the mean of manual VS automatic cars, hinting that there is some residual variation left unaccounted for in our model.
+
 ### Car Weight as a Confounder
 
-One thing we need to look at is how weight affects MPG, as well as look into any correlation between weight and transmission inherent in our data.
+Common sense tells us that weight has a significant effect on MPG - heavier cars tend to burn through fuel faster than lighter cars.  So we need to account for how weight affects MPG, as well as look into any correlation between weight and transmission inherent in our data.
 
 ```{r, fig.width = 10, fig.height = 6.4}
 
@@ -229,8 +236,8 @@ p
 
 Look at the cars in the weight range where automatic and manual transmission overlap (roughly between 2,500 and 3,500 lbs).  When we compare different transmission types within the same weight class, we get noticeably different slopes and intercepts.  We also notice a completely different trend.  Cars with automatic transmission tend to have better gas milage than ones with manual transmission.  Therefore, we should include weight as an interaction term.
 
-```{r}
-fit.c <- lm(mpg ~ factor(am) : wt, data = mtcars)
+```{r, fig.width = 10, fig.height = 6.4}
+fit.c <- lm(mpg ~ factor(am) * wt, data = mtcars)
 resid.plot(fit.c)
 ```
 
